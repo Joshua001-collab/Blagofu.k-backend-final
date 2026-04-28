@@ -17,6 +17,15 @@ app.use(express.json({ limit: '10mb' }));
 // Connect DB
 connectDB();
 
+// ================= AUTH MIDDLEWARE =================
+const requireAuth = (req, res, next) => {
+  const token = req.headers['authorization'];
+  if (!token || token !== 'Bearer blagofuk-admin-token') {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+  next();
+};
+
 // Multer (store images in memory → MongoDB)
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
@@ -38,7 +47,7 @@ app.post('/api/auth/login', (req, res) => {
   res.status(401).json({ success: false, message: 'Invalid credentials' });
 });
 
-app.put('/api/auth/password', (req, res) => {
+app.put('/api/auth/password', requireAuth, (req, res) => {
   const { currentPassword, newPassword } = req.body;
 
   if (currentPassword !== adminUser.password) {
@@ -52,7 +61,7 @@ app.put('/api/auth/password', (req, res) => {
 // ================= HERO =================
 app.get('/api/hero', async (req, res) => {
   const hero = await Hero.findOne();
-  
+
   if (!hero) return res.json(null);
 
   res.json({
@@ -62,12 +71,10 @@ app.get('/api/hero', async (req, res) => {
   });
 });
 
-app.post('/api/hero', upload.single('image'), async (req, res) => {
+app.post('/api/hero', requireAuth, upload.single('image'), async (req, res) => {
   let hero = await Hero.findOne();
 
-  const data = {
-    ...req.body
-  };
+  const data = { ...req.body };
 
   if (req.file) {
     data.image = {
@@ -103,7 +110,7 @@ app.get('/api/products', async (req, res) => {
   res.json(formatted);
 });
 
-app.post('/api/products', upload.single('image'), async (req, res) => {
+app.post('/api/products', requireAuth, upload.single('image'), async (req, res) => {
   try {
     const product = new Product({
       name: req.body.name,
@@ -118,15 +125,13 @@ app.post('/api/products', upload.single('image'), async (req, res) => {
     });
 
     await product.save();
-
     res.json({ success: true, data: product });
-
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.put('/api/products/:id', upload.single('image'), async (req, res) => {
+app.put('/api/products/:id', requireAuth, upload.single('image'), async (req, res) => {
   const updateData = { ...req.body };
 
   if (req.file) {
@@ -145,7 +150,7 @@ app.put('/api/products/:id', upload.single('image'), async (req, res) => {
   res.json({ success: true, data: updated });
 });
 
-app.delete('/api/products/:id', async (req, res) => {
+app.delete('/api/products/:id', requireAuth, async (req, res) => {
   await Product.findByIdAndDelete(req.params.id);
   res.json({ success: true });
 });
@@ -163,7 +168,7 @@ app.get('/api/reviews', async (req, res) => {
   res.json(formatted);
 });
 
-app.post('/api/reviews', upload.single('image'), async (req, res) => {
+app.post('/api/reviews', requireAuth, upload.single('image'), async (req, res) => {
   const review = new Review({
     ...req.body,
     image: req.file
@@ -178,7 +183,7 @@ app.post('/api/reviews', upload.single('image'), async (req, res) => {
   res.json({ success: true, data: review });
 });
 
-app.put('/api/reviews/:id', upload.single('image'), async (req, res) => {
+app.put('/api/reviews/:id', requireAuth, upload.single('image'), async (req, res) => {
   const updateData = { ...req.body };
 
   if (req.file) {
@@ -197,7 +202,7 @@ app.put('/api/reviews/:id', upload.single('image'), async (req, res) => {
   res.json({ success: true, data: updated });
 });
 
-app.delete('/api/reviews/:id', async (req, res) => {
+app.delete('/api/reviews/:id', requireAuth, async (req, res) => {
   await Review.findByIdAndDelete(req.params.id);
   res.json({ success: true });
 });
@@ -214,7 +219,7 @@ app.get('/api/contacts', (req, res) => {
   res.json(contactsData);
 });
 
-app.put('/api/contacts', (req, res) => {
+app.put('/api/contacts', requireAuth, (req, res) => {
   contactsData = { ...contactsData, ...req.body };
   res.json({ success: true, data: contactsData });
 });
@@ -238,13 +243,13 @@ app.post('/api/messages', (req, res) => {
   res.json({ success: true, data: message });
 });
 
-app.put('/api/messages/:id/read', (req, res) => {
+app.put('/api/messages/:id/read', requireAuth, (req, res) => {
   const msg = messages.find(m => m.id === req.params.id);
   if (msg) msg.read = true;
   res.json({ success: true });
 });
 
-app.delete('/api/messages/:id', (req, res) => {
+app.delete('/api/messages/:id', requireAuth, (req, res) => {
   messages = messages.filter(m => m.id !== req.params.id);
   res.json({ success: true });
 });
@@ -263,7 +268,7 @@ app.get('/api/settings', (req, res) => {
   res.json(settingsData);
 });
 
-app.put('/api/settings', (req, res) => {
+app.put('/api/settings', requireAuth, (req, res) => {
   settingsData = { ...settingsData, ...req.body };
   res.json({ success: true, data: settingsData });
 });
